@@ -264,6 +264,53 @@ in `device.py`; no extra runtime Python file is required.
 
 ## New cards
 
+### `control_command`
+
+This read-only sensor observes the existing Bumi `Control_Cmd_Topic` DDS
+stream. It creates a DDS reader only; it does not send commands or connect to
+the App. The stream may contain commands from multiple publishers, including
+the robot's control board and SDK clients. The Card cannot reliably identify
+which command came from Noetix Run, reconstruct the original button presses,
+or determine whether the robot accepted or completed a request.
+
+- `/<namespace>/control/observed_command`: latest observation and reader
+  health, published at 10 Hz as `data/json`.
+- `/<namespace>/control/observed_command_events`: one best-effort event per
+  received command sample, also `data/json`. This is a live stream rather
+  than durable storage or a complete audit log; a consumer may record it.
+- Each fresh command includes normalized `forward`, `lateral`, and `yaw`
+  control inputs, derived direction labels and `description_zh`, original `action_code` and `data`,
+  DDS `publisher_guid`, local `received_at_ms`, `origin: "unknown"` and
+  `execution_status: "unknown"`. `axes_neutral` is true only when an actual
+  command with axes within the configured deadband was received; an action
+  code can still accompany neutral axes. `read` returns the latest snapshot.
+  `command` is the most recently received sample; `recent_commands` keeps the
+  latest fresh sample from each publisher so an SDK client's neutral command
+  does not hide another publisher's command. A publisher identifier beginning
+  with `unknown-` is an ephemeral DDS handle when its GUID was unavailable.
+- `fresh` refers to receipt of a DDS sample by this reader. After
+  `stale_after_s` without a sample, `command` becomes `null` and the state is
+  `no_recent_command`; this does not mean the robot stopped or the App
+  disconnected. `reader_ready` and `matched_publishers` describe DDS reader
+  health, not the phone's connection status. If the reader fails the Card
+  publishes `unavailable` and automatically retries.
+
+On 2026-11-21, during an authorized live test, the user operated the Noetix Run
+direction buttons and confirmed Bumi responded. A read-only subscriber saw
+the control-board publisher send changing axes and an explicit zero sample.
+The installed HighController implementation stores `(z, x, y)` in DDS
+`axes[0:3]`, where the SDK defines `x` as forward, `y` as lateral, and `z` as
+yaw. The axis mapping is specific to this SDK implementation. Button identity,
+action-code meaning for the App, completion and lossless delivery were not
+verified by this test. Always compare against `motion_state` for observed robot
+state; do not feed the observations back into an actuator.
+
+The SDK does not expose a Python command subscriber. The Card starts an
+isolated CycloneDDS reader process and discovers the vendor's command type; it
+validates the exact tested type layout and fails closed on incompatible
+firmware. The retrying worker uses the existing `CYCLONEDDS_URI` configuration.
+No second `HighController` instance is created.
+
 ### `motion_state`
 
 Passive, read-only whole-body motion telemetry from `HighController`. The card has no action parameters or execute button. Its single JSON output combines the former summary and joint views:

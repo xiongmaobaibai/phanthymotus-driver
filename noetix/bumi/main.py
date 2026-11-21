@@ -198,6 +198,12 @@ class BumiDeviceBundle:
             self._plugins.append(motion_state_plugin)
             print("[bundle] MotionStatePlugin loaded")
 
+        if plugins_cfg.get("control_command", {}).get("enabled", False):
+            from control_command_card import ControlCommandPlugin
+            self._plugins.append(ControlCommandPlugin(
+                plugins_cfg["control_command"], namespace, executor))
+            print("[bundle] ControlCommandPlugin loaded")
+
         if plugins_cfg.get("vision_capture", {}).get("enabled", False):
             from device import VisionCapturePlugin
             self._plugins.append(VisionCapturePlugin(

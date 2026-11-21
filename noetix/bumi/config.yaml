@@ -87,6 +87,11 @@ plugins:
     poll_interval_s: 0.5
     # Activity classification only; this is not a motor safety or command limit.
     activity_velocity_threshold: 0.15
+  # Read-only observation of high-level command requests from all DDS writers.
+  control_command:
+    enabled: true
+    stale_after_s: 0.5
+    deadband: 0.05
   vision_capture:
     enabled: true
     # Existing host bind mount keeps photos/videos across container replacements.
